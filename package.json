@@ -24,6 +24,9 @@
     "export",
     "dump"
   ],
+  "bin": {
+    "github-issues-export": "./export-issues.js"
+  },
   "author": "Jonas Colmsjö (http://colmsjo.com)",
   "contributors": [
     "Matti Schneider <hi@mattischneider.fr> (http://mattischneider.fr)"

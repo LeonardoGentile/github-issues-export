@@ -33,7 +33,7 @@ var linkNextPage = null;
 var vState = null;
 
 // set logging level
-logging.threshold  = logging.warn;
+logging.threshold  = logging.warning;
 
 if (argv.bodynewlines == null) {
     argv.bodynewlines = 'y';
@@ -61,7 +61,7 @@ function getOauthToken(user, password){
 
     logDebug('getOauthToken: Starting list authorization...');
 
-      var request = $.ajax({
+    var request = $.ajax({
 
         url: 'https://api.github.com/authorizations',
         type: 'POST',
@@ -83,7 +83,7 @@ function getOauthToken(user, password){
     });
 
     return request;
-        
+
 }
 
 //
@@ -145,7 +145,7 @@ function listMyIssues(){
         url: 'https://api.github.com/issues?access_token=' + oauthToken.token,
         type: 'GET',
 
-        
+
         success: function(data, textStatus, jqXHR){
             logDebug('listMyIssues: Yea, it worked...' + textStatus + ' - ' + JSON.stringify(data) );
 
@@ -205,9 +205,9 @@ function listRepoIssues(repo_url){
                 if(value.milestone == null) value.milestone = {title: ''};
 
                 if (argv.bodynewlines === 'n') {
-                    value.body = value.body.replace(/(\r\n|\n|\r)/gm,"");    
+                    value.body = value.body.replace(/(\r\n|\n|\r)/gm,"");
                 }
-                
+
                 // create array of the labels
                 var labels = [];
                 $.each( value.labels, function(index, value) {
@@ -216,9 +216,9 @@ function listRepoIssues(repo_url){
 
 
                 // Print the result to stdout
-                (argv.full) ? log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
+                (argv.full) ? log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title,
                                     labels.join(','), value.comments, value.body].join(sep) ) :
-                              log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title, 
+                              log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title,
                                     labels.join(','), value.comments].join(sep) ) ;
             });
 
@@ -271,7 +271,7 @@ function listGists(user){
 
 // recurse
 // =======
-// Had to do some recursion in order to get fetch page by page synchronously 
+// Had to do some recursion in order to get fetch page by page synchronously
 // with ajax (which is asynchronous)
 
 function recurse() {
@@ -292,8 +292,9 @@ $.when( getOauthToken(argv.user, argv.password) )
         logDebug('$.when.then...');
 
         if (argv.state == null || argv.state == "all") {
-           vState = "open"; 
+           vState = "open";
         }
+        else vState = argv.state;
 
         linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?state=' + vState + '&access_token=' + oauthToken.token; // + '&per_page=100';
 
@@ -303,7 +304,7 @@ $.when( getOauthToken(argv.user, argv.password) )
             linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?state=closed&access_token=' + oauthToken.token; // + '&per_page=100';
 
             recurse();
-        }        
+        }
 
         //listMyIssues();
     })
