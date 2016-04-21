@@ -9,9 +9,9 @@
 //
 // Export the issues in a github repo to a CSV file
 //
-// dependencies: npm install jsdom xmlhttprequest jQuery optimist
+// dependencies: npm install jsdom@3 xmlhttprequest jquery yargs
 //
-// Using Google JavaScript Style Guide - http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml
+// npm install (from packages.json)
 //
 //------------------------------
 
@@ -22,12 +22,22 @@
 // Includes
 // ================
 
-var $       = require('jQuery');
+// The right way to require jsondom and jquery
+// https://www.npmjs.com/package/jquery
+require("jsdom").env("", function(err, window) {
+    if (err) {
+        console.error(err);
+        return;
+    }
+    global.$ = require("jquery")(window);
+    main();
+});
+
 var helpers = require('./helpers.js');
-var argv    = require('optimist')
-                .usage('Usage: ./export-issues --user [github user] --password [github password] --owner [github owner of repo] --repo [github repo] --state [issues state] --bodynewlines [y/n] --full')
-                .demand(['user','password', 'owner', 'repo'])
-                .argv;
+var argv = require('yargs')
+    .usage('Usage: ./export-issues --owner [github owner of repo] --repo [github repo] --state [issues state] --bodynewlines [y/n] --body [y/n]')
+    .demand(['token', 'owner', 'repo'])
+    .argv;
 
 var linkNextPage = null;
 var vState = null;
@@ -35,8 +45,12 @@ var vState = null;
 // set logging level
 logging.threshold  = logging.warning;
 
-if (argv.bodynewlines == null) {
+if (argv.bodynewlines == null || argv.bodynewlines == undefined) {
     argv.bodynewlines = 'y';
+}
+
+if (argv.body == null || argv.body == undefined) {
+    argv.body = 'y';
 }
 
 
@@ -44,7 +58,7 @@ if (argv.bodynewlines == null) {
 //==============
 
 var sep    = ';';
-var oauthToken;
+var oauthToken = {};
 
 
 // Functions
@@ -57,34 +71,23 @@ var oauthToken;
 // Equivalent of: curl -i -u colmsjo -d '{"scopes":["repo"]}' https://api.github.com/authorizations
 //
 
-function getOauthToken(user, password){
+// TODO:
+function getOauthToken(user, password, token){
 
     logDebug('getOauthToken: Starting list authorization...');
 
-    var request = $.ajax({
-
-        url: 'https://api.github.com/authorizations',
-        type: 'POST',
-
-        data: '{ "scopes": [ "repo" ], "note": "Created by list-issues.js"  }',
-
-        username: user,
-        password: password,
-
-        success: function(data){
-            logDebug('getOauthToken: Yea, it worked...' + JSON.stringify(data) );
-            oauthToken = data;
-        },
-
-        error: function(data){
-            logErr('getOauthToken: Shit hit the fan...' + JSON.stringify(data));
-
-        }
-    });
-
-    return request;
+    if (token) {
+        oauthToken.token = token;
+        return $.when(oauthToken); // already resolved promise
+    }
+    // TODO:
+    // else {
+    //     oauthToken = asyncObtainToken(user, password);
+    // }
+    }
 
 }
+
 
 //
 // Parse HTTP Headers in order to get the link for next page
@@ -156,12 +159,10 @@ function listMyIssues(){
             });
 
             parseHttpHeaders(jqXHR);
-
-       },
+        },
 
         error: function(data){
             logErr('listMyIssues: Shit hit the fan...' + JSON.stringify(data));
-
         }
 
     });
@@ -177,7 +178,7 @@ function listMyIssues(){
 
 function listRepoIssuesHeader(){
 
-    (argv.full) ? log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comments', 'body'].join(sep) ) :
+    (argv.body === 'y') ? log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comments', 'body'].join(sep) ) :
                   log( ['number', 'id' , 'title', 'state', 'created by', 'assigned to', 'created at', 'updated at', 'closed at', 'milestone', 'labels', 'comments'].join(sep) ) ;
 
 }
@@ -216,7 +217,7 @@ function listRepoIssues(repo_url){
 
 
                 // Print the result to stdout
-                (argv.full) ? log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title,
+                (argv.body === 'y') ? log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title,
                                     labels.join(','), value.comments, value.body].join(sep) ) :
                               log( [value.number, value.id, value.title, value.state, value.user.login, value.assignee.login, value.created_at, value.updated_at, value.closed_at, value.milestone.title,
                                     labels.join(','), value.comments].join(sep) ) ;
@@ -285,31 +286,35 @@ function recurse() {
 // Main
 //=========
 
-listRepoIssuesHeader();
+function main(argument) {
+    listRepoIssuesHeader();
 
-$.when( getOauthToken(argv.user, argv.password) )
-    .then( function() {
-        logDebug('$.when.then...');
+    $.when(getOauthToken(argv.user, argv.password, argv.token))
+        .then( function(token) {
 
-        if (argv.state == null || argv.state == "all") {
-           vState = "open";
-        }
-        else vState = argv.state;
+            logDebug('$.when.then...');
 
-        linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?state=' + vState + '&access_token=' + oauthToken.token; // + '&per_page=100';
+            // open, closed,  all
+            if (!argv.state || argv.state == "all") {
+               vState = "all";
+            }
+            else vState = argv.state;
 
-        recurse();
-
-        if (argv.state == "all") {
-            linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?state=closed&access_token=' + oauthToken.token; // + '&per_page=100';
+            linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?state=' + vState + '&access_token=' + oauthToken.token; // + '&per_page=100';
 
             recurse();
-        }
 
-        //listMyIssues();
-    })
-    .fail( function() {
-        logErr('Failed getting oAuth token...');
-    })
+            if (argv.state == "all") {
+                linkNextPage = 'https://api.github.com/repos/' + argv.owner + '/' + argv.repo + '/issues?state=closed&access_token=' + oauthToken.token; // + '&per_page=100';
+
+                recurse();
+            }
+
+            //listMyIssues();
+        })
+        .fail( function() {
+            logErr('Failed getting oAuth token...');
+        });
+}
 
 })();

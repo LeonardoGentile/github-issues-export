@@ -4,10 +4,10 @@
   "description": "Export GithHub issues to a CSV file",
   "main": "export-issues.js",
   "dependencies": {
-    "jQuery": "~1.7.4",
-    "jsdom": "~0.6.0",
-    "optimist": "~0.4.0",
-    "xmlhttprequest": "~1.5.0"
+    "jquery": "^2.1.1",
+    "jsdom": "^3.1.2",
+    "xmlhttprequest": "~1.5.0",
+    "yargs": "^4.6.0"
   },
   "devDependencies": {},
   "scripts": {
@@ -29,6 +29,7 @@
   },
   "author": "Jonas Colmsjö (http://colmsjo.com)",
   "contributors": [
+    "Leonardo Gentile https://github.com/LeonardoGentile",
     "Matti Schneider <hi@mattischneider.fr> (http://mattischneider.fr)"
   ],
   "license": "WTFPL",
